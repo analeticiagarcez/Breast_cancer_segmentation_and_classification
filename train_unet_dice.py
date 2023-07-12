@@ -1,14 +1,22 @@
-from .utils import Dataset, DiceLoss
+from utils import Dataset, DiceLoss
 
+import torch
 import torch.nn as nn
 import torch.optim as optim
+import torchvision.models
+from torch.utils.data import DataLoader
+from torch.autograd import Variable
 
 torch.manual_seed(42)
 
-#wget
+nome_modelo = 'unet'
 
 num_workers = 4
 batch_size = 8
+
+test = Dataset('dataset/test', (256,256))
+train = Dataset('dataset/train', (256,256))
+
 # Cria os data loader de treino e de teste
 train_loader = DataLoader(train, batch_size=batch_size, shuffle=True,
                           num_workers=num_workers, pin_memory=True)
@@ -16,9 +24,6 @@ train_loader = DataLoader(train, batch_size=batch_size, shuffle=True,
 test_loader = DataLoader(test, batch_size=batch_size, shuffle=True,
                          num_workers=num_workers, pin_memory=True)
 
-
-test = Dataset('/content/dataset/test', (256,256))
-train = Dataset('/content/dataset/train', (256,256))
 
 # Baixa o modelo pré-treinado para identificação de tumor cerebral
 model = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet',
@@ -42,7 +47,7 @@ criterion_dice = DiceLoss()
 optimizer = optim.Adam(model.parameters(), lr=2e-3)
 
 
-epochs = 100
+epochs = 300
 for epoch in range(epochs):
   model.train()
   print(epoch)
@@ -63,4 +68,12 @@ for epoch in range(epochs):
     running_loss += loss.item()
 
   epoch_loss = running_loss/len(train_loader)
+  torch.save({
+            'epoch': (epoch+1),
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': running_loss,
+            }, f'./modelos/{nome_modelo}_{epoch+1}_{epoch_loss:.4f}.pt')
+  
   print(f'Epoch: {epoch + 1}/{epochs} - Loss: {epoch_loss: .4f}')
+
